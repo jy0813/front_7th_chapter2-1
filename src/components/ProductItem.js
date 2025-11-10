@@ -71,7 +71,7 @@ const ProductDetailItem = ({
           <div class="flex items-center mb-3">
             ${Rating({ rating })}
             <span class="ml-2 text-sm text-gray-600"
-              >${rating.toFixed(1)} (${reviewCount}개 리뷰)</span
+              >${(rating ?? 0).toFixed(1)} (${reviewCount}개 리뷰)</span
             >
           </div>
           <!-- 가격 -->

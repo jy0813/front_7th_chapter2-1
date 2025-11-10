@@ -20,7 +20,7 @@ const push = (path) => {
 const render = async () => {
   const $root = document.querySelector('#root');
 
-  if (window.location.pathname === '/') {
+  if (window.location.pathname === `${import.meta.env.BASE_URL}`) {
     $root.innerHTML = HomePage({ loading: true });
     const data = await getProducts();
     $root.innerHTML = HomePage({ loading: false, ...data });
@@ -30,7 +30,7 @@ const render = async () => {
 
       if ($target.closest('.product-card')) {
         const productId = $target.closest('.product-card').dataset.productId;
-        push(`/products/${productId}`);
+        push(`${import.meta.env.BASE_URL}products/${productId}`);
         render();
       }
     });

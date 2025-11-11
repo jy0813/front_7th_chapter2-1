@@ -1,4 +1,4 @@
-import { getProduct, getProducts } from '@/api/productApi';
+import { getCategories, getProduct, getProducts } from '@/api/productApi';
 import { DetailPage } from '@/pages/DetailPage';
 import { HomePage } from '@/pages/HomePage';
 
@@ -22,8 +22,13 @@ const render = async () => {
 
   if (window.location.pathname === `${import.meta.env.BASE_URL}`) {
     $root.innerHTML = HomePage({ loading: true });
-    const data = await getProducts();
-    $root.innerHTML = HomePage({ loading: false, ...data });
+    const productsData = await getProducts();
+    const categoriesData = await getCategories();
+    $root.innerHTML = HomePage({
+      loading: false,
+      ...productsData,
+      categories: categoriesData,
+    });
 
     document.body.addEventListener('click', (e) => {
       const $target = e.target;

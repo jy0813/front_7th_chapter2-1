@@ -1,4 +1,17 @@
-export const SearchForm = ({ loading }) => {
+import { LIMIT_OPTIONS } from '@/constants';
+
+export const SearchForm = ({
+  pagination = { limit: 20 },
+  filters,
+  categories,
+}) => {
+  console.log(pagination, filters);
+
+  const categoriesData = categories || {};
+  const category1List = Object.keys(categoriesData);
+
+  console.log('categoriesData', categoriesData, 'category1List', category1List);
+
   return /* HTML */ `
     <!-- 검색 및 필터 -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
@@ -44,7 +57,7 @@ export const SearchForm = ({ loading }) => {
               전체
             </button>
           </div>
-          ${loading
+          ${!categories || category1List.length === 0
             ? /* HTML */ `
                 <!-- 1depth 카테고리 -->
                 <div class="flex flex-wrap gap-2">
@@ -56,20 +69,19 @@ export const SearchForm = ({ loading }) => {
             : /* HTML */ `
                 <!-- 1depth 카테고리 -->
                 <div class="flex flex-wrap gap-2">
-                  <button
-                    data-category1="생활/건강"
-                    class="category1-filter-btn text-left px-3 py-2 text-sm rounded-md border transition-colors
-                   bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    생활/건강
-                  </button>
-                  <button
-                    data-category1="디지털/가전"
-                    class="category1-filter-btn text-left px-3 py-2 text-sm rounded-md border transition-colors
-                   bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    디지털/가전
-                  </button>
+                  ${category1List
+                    .map(
+                      (category1) => /* HTML */ `
+                        <button
+                          data-category1="${category1}"
+                          class="category1-filter-btn text-left px-3 py-2 text-sm rounded-md border transition-colors
+                         bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                        >
+                          ${category1}
+                        </button>
+                      `,
+                    )
+                    .join('')}
                 </div>
               `}
 
@@ -84,10 +96,10 @@ export const SearchForm = ({ loading }) => {
               id="limit-select"
               class="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="10">10개</option>
-              <option value="20" selected="">20개</option>
-              <option value="50">50개</option>
-              <option value="100">100개</option>
+              ${LIMIT_OPTIONS.map(
+                (option) =>
+                  `<option value="${option.value}" ${pagination.limit === option.value ? 'selected' : ''}>${option.label}</option>`,
+              ).join('')}
             </select>
           </div>
           <!-- 정렬 -->

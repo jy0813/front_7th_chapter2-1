@@ -7,11 +7,12 @@ export const HomePage = ({
   products,
   loading,
   categories,
+  error,
 }) => {
   return Layout({
     children: /* HTML */ `
       ${SearchForm({ filters, pagination, categories })}
-      ${ProductList({ loading, products, total: pagination?.total })}
+      ${ProductList({ loading, products, total: pagination?.total, error })}
     `,
   });
 };

@@ -153,27 +153,36 @@ const render = async () => {
       ...pageState,
     });
 
-    // 병렬 API 호출
-    const [productsData, categoriesData] = await Promise.all([
-      getProducts(queryParams),
-      getCategories(),
-    ]);
+    try {
+      // 병렬 API 호출
+      const [productsData, categoriesData] = await Promise.all([
+        getProducts(queryParams),
+        getCategories(),
+      ]);
 
-    // 필요한 데이터만 구조분해
-    const { products, pagination } = productsData;
-    const { filters } = pageState;
+      // 필요한 데이터만 구조분해
+      const { products, pagination } = productsData;
+      const { filters } = pageState;
 
-    // 완료 상태 렌더링
-    $root.innerHTML = HomePage({
-      loading: false,
-      categories: categoriesData,
-      products,
-      pagination,
-      filters,
-    });
+      // 완료 상태 렌더링
+      $root.innerHTML = HomePage({
+        loading: false,
+        categories: categoriesData,
+        products,
+        pagination,
+        filters,
+      });
 
-    // 홈 페이지에서만 무한 스크롤 초기화
-    initInfiniteScroll(queryParams);
+      // 홈 페이지에서만 무한 스크롤 초기화
+      initInfiniteScroll(queryParams);
+    } catch (error) {
+      // 에러 상태 렌더링
+      $root.innerHTML = HomePage({
+        loading: false,
+        error: error.message || '데이터를 불러오는데 실패했습니다.',
+        ...pageState,
+      });
+    }
   } else {
     const productId = window.location.pathname.split('/product/')[1];
     $root.innerHTML = DetailPage({ loading: true });
@@ -184,6 +193,59 @@ const render = async () => {
 
 document.body.addEventListener('click', (e) => {
   const $target = e.target;
+
+  // 재시도 버튼 클릭
+  if ($target.closest('#retry-btn')) {
+    e.stopPropagation();
+
+    // 로딩 상태로 다시 렌더링
+    const $root = document.querySelector('#root');
+    const url = new URL(window.location);
+    const limit = parseInt(url.searchParams.get('limit')) || 20;
+    const page = 1;
+    const search = url.searchParams.get('search') || '';
+    const category1 = url.searchParams.get('category1') || '';
+    const category2 = url.searchParams.get('category2') || '';
+    const sort = url.searchParams.get('sort') || 'price_asc';
+
+    const pageState = {
+      pagination: { limit, page },
+      filters: { sort, search, category1, category2 },
+    };
+
+    const queryParams = { limit, page, search, category1, category2, sort };
+
+    $root.innerHTML = HomePage({
+      loading: true,
+      ...pageState,
+    });
+
+    // API 재호출
+    Promise.all([getProducts(queryParams), getCategories()])
+      .then(([productsData, categoriesData]) => {
+        const { products, pagination } = productsData;
+        const { filters } = pageState;
+
+        $root.innerHTML = HomePage({
+          loading: false,
+          categories: categoriesData,
+          products,
+          pagination,
+          filters,
+        });
+
+        initInfiniteScroll(queryParams);
+      })
+      .catch((error) => {
+        $root.innerHTML = HomePage({
+          loading: false,
+          error: error.message || '데이터를 불러오는데 실패했습니다.',
+          ...pageState,
+        });
+      });
+
+    return;
+  }
 
   // 장바구니 아이콘 클릭
   if ($target.closest('#cart-icon-btn')) {
@@ -307,7 +369,7 @@ document.body.addEventListener('click', (e) => {
 
   if ($target.closest('.product-card')) {
     const productId = $target.closest('.product-card').dataset.productId;
-    push(`${import.meta.env.BASE_URL}products/${productId}`);
+    push(`${import.meta.env.BASE_URL}product/${productId}`);
     render();
   }
 });

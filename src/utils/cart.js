@@ -31,9 +31,7 @@ const saveCartData = (data) => {
 
 export const addToCart = (product, quantity = 1) => {
   const data = getCartData();
-  const existingItem = data.items.find(
-    (item) => item.productId === product.productId,
-  );
+  const existingItem = data.items.find((item) => item.id === product.productId);
 
   if (existingItem) {
     existingItem.quantity += quantity;
@@ -54,12 +52,12 @@ export const addToCart = (product, quantity = 1) => {
 
 export const updateCartQuantity = (productId, quantity) => {
   const data = getCartData();
-  const item = data.items.find((item) => item.productId === productId);
+  const item = data.items.find((item) => item.id === productId);
 
   if (!item) return data.items;
 
   if (quantity <= 0) {
-    data.items = data.items.filter((item) => item.productId !== productId);
+    data.items = data.items.filter((item) => item.id !== productId);
   } else {
     item.quantity = quantity;
   }
@@ -70,7 +68,7 @@ export const updateCartQuantity = (productId, quantity) => {
 
 export const removeFromCart = (productId) => {
   const data = getCartData();
-  data.items = data.items.filter((item) => item.productId !== productId);
+  data.items = data.items.filter((item) => item.id !== productId);
   saveCartData(data);
   return data.items;
 };
@@ -91,7 +89,7 @@ export const clearCart = () => {
 
 export const toggleCartItemSelection = (productId) => {
   const data = getCartData();
-  const item = data.items.find((item) => item.productId === productId);
+  const item = data.items.find((item) => item.id === productId);
 
   if (item) {
     item.selected = !item.selected;
@@ -122,10 +120,6 @@ export const getSelectedItems = () => {
   return getCartData().items.filter((item) => item.selected);
 };
 
-export const getCartItemCount = () => {
-  return getCartData().items.reduce((sum, item) => sum + item.quantity, 0);
-};
-
-export const getSelectedItemCount = () => {
-  return getSelectedItems().reduce((sum, item) => sum + item.quantity, 0);
+export const getCartItemsLength = () => {
+  return getCartData().items.length;
 };

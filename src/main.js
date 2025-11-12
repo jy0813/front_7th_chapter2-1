@@ -5,8 +5,20 @@ import {
   initInfiniteScroll,
   cleanupInfiniteScroll,
 } from '@/utils/infiniteScroll';
-import { addToCart } from '@/utils/cart';
+import {
+  addToCart,
+  getCartData,
+  updateCartQuantity,
+  removeFromCart,
+  toggleCartItemSelection,
+  removeSelectedItems,
+  toggleSelectAll,
+  clearCart,
+  getSelectedItems,
+} from '@/utils/cart';
 import { showToast } from '@/components';
+import { CartModal } from '@/components/cart';
+import { Header } from '@/components/layout/Header';
 
 //TODO: 캐싱 전략 고민
 //TODO: 라이프사이클 관리 고민
@@ -30,6 +42,85 @@ const push = (path) => {
   render();
 };
 
+// 장바구니 모달 렌더링
+const renderCartModal = () => {
+  const cartData = getCartData();
+  const selectedItems = getSelectedItems();
+  const checkedItems = new Set(selectedItems.map((item) => item.id));
+
+  // 가격 계산
+  const selectedCount = selectedItems.length;
+  const selectedPrice = selectedItems.reduce(
+    (sum, item) => sum + item.lprice * item.quantity,
+    0,
+  );
+  const totalPrice = cartData.items.reduce(
+    (sum, item) => sum + item.lprice * item.quantity,
+    0,
+  );
+
+  // 장바구니 아이템 포맷 변환
+  const formattedItems = cartData.items.map((item) => ({
+    id: item.id,
+    image: item.image,
+    title: item.title,
+    price: item.lprice,
+    quantity: item.quantity,
+    totalPrice: item.lprice * item.quantity,
+  }));
+
+  // 모달 HTML 생성
+  const modalHTML = CartModal({
+    items: formattedItems,
+    checkedItems,
+    selectedCount,
+    selectedPrice,
+    totalPrice,
+    isAllSelected: cartData.selectedAll,
+  });
+
+  // 기존 모달이 있다면 제거
+  const existingModal = document.querySelector('.cart-modal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  // footer 요소를 찾아서 그 앞에 모달 추가 (main의 형제 요소로)
+  const footer = document.querySelector('footer');
+  if (footer) {
+    footer.insertAdjacentHTML('beforebegin', modalHTML);
+  }
+
+  // body 스크롤 방지
+  document.body.style.overflow = 'hidden';
+};
+
+// 장바구니 모달 닫기
+const closeCartModal = () => {
+  const modal = document.querySelector('.cart-modal');
+  if (modal) {
+    modal.remove();
+    // body 스크롤 복원
+    document.body.style.overflow = '';
+  }
+};
+
+// 장바구니 모달 새로고침 (데이터 변경 후 UI 업데이트)
+const refreshCartModal = () => {
+  const modal = document.querySelector('.cart-modal');
+  if (modal) {
+    renderCartModal();
+  }
+};
+
+// 헤더 업데이트 (장바구니 배지 업데이트)
+const updateHeader = () => {
+  const header = document.querySelector('header');
+  if (header) {
+    header.outerHTML = Header();
+  }
+};
+
 const render = async () => {
   // 페이지 전환 시 기존 무한 스크롤 정리
   cleanupInfiniteScroll();
@@ -42,6 +133,13 @@ const render = async () => {
   const category1 = url.searchParams.get('category1') || '';
   const category2 = url.searchParams.get('category2') || '';
   const sort = url.searchParams.get('sort') || 'price_asc';
+  // 공통 상태 객체 추출
+  const pageState = {
+    pagination: { limit, page },
+    filters: { sort, search, category1, category2 },
+  };
+
+  const queryParams = { limit, page, search, category1, category2, sort };
 
   if (window.location.pathname === `${import.meta.env.BASE_URL}`) {
     // 무한 스크롤을 위해 항상 1페이지부터 시작
@@ -49,73 +147,11 @@ const render = async () => {
     url.searchParams.set('current', '1');
     window.history.replaceState(null, '', url);
 
-    // 공통 상태 객체 추출
-    const pageState = {
-      pagination: { limit, page },
-      filters: { sort, search, category1, category2 },
-    };
-
-    const queryParams = { limit, page, search, category1, category2, sort };
-    // 캐싱한다면?? (임시)
-
-    // const filterKey = JSON.stringify({
-    //   search,
-    //   category1,
-    //   category2,
-    //   sort,
-    //   limit,
-    // });
-
-    // JSON.stringify 객체 프로퍼티 순서 문제 방지
-    // const stableKey = (obj) => {
-    //   return JSON.stringify(Object.fromEntries(Object.entries(obj).sort()));
-    // };
-    // const filterKey = stableKey({ search, category1, category2, sort, limit });
-
-    // const cachedData = productsCache[filterKey];
-
-    // 로딩 상태 렌더링 (캐시된 categories 전달)
-    // $root.innerHTML = HomePage({
-    //   loading: true,
-    //   categories: categoriesCache,
-    //   products: cachedData?.products || [],
-    //   pagination: cachedData?.pagination || pageState.pagination,
-    //   ...pageState,
-    // });
-
     // 로딩 상태 렌더링
     $root.innerHTML = HomePage({
       loading: true,
       ...pageState,
     });
-
-    // 캐싱 시 조건부 API 호출
-    // let productsData;
-    // if (!categoriesCache) {
-    //   // 첫 로딩
-    //   if (!cachedData) {
-    //     // 병렬 호출
-    //     [productsData, categoriesCache] = await Promise.all([
-    //       getProducts(queryParams),
-    //       getCategories(),
-    //     ]);
-    //     productsCache[filterKey] = productsData;
-    //   } else {
-    //     // categories만 로드
-    //     categoriesCache = await getCategories();
-    //     productsData = cachedData;
-    //   }
-    // } else {
-    //   // 이후
-    //   if (!cachedData) {
-    //     // products 로드
-    //     productsData = await getProducts(queryParams);
-    //     productsCache[filterKey] = productsData;
-    //   } else {
-    //     // 캐시 사용 (API 호출 없음)
-    //     productsData = cachedData;
-    //   }
-    // }
 
     // 병렬 API 호출
     const [productsData, categoriesData] = await Promise.all([
@@ -149,6 +185,108 @@ const render = async () => {
 document.body.addEventListener('click', (e) => {
   const $target = e.target;
 
+  // 장바구니 아이콘 클릭
+  if ($target.closest('#cart-icon-btn')) {
+    e.stopPropagation();
+    renderCartModal();
+    return;
+  }
+
+  // 장바구니 모달 닫기
+  if ($target.closest('#cart-modal-close-btn')) {
+    e.stopPropagation();
+    closeCartModal();
+    return;
+  }
+
+  // 장바구니 모달 오버레이 클릭
+  if ($target.classList.contains('cart-modal-overlay')) {
+    closeCartModal();
+    return;
+  }
+
+  // 장바구니 전체 선택 체크박스 클릭
+  if ($target.id === 'cart-modal-select-all-checkbox') {
+    toggleSelectAll();
+    refreshCartModal();
+    return;
+  }
+
+  // 장바구니 아이템 체크박스 클릭
+  if ($target.classList.contains('cart-item-checkbox')) {
+    const productId = $target.dataset.productId;
+    toggleCartItemSelection(productId);
+    refreshCartModal();
+    return;
+  }
+
+  // 선택한 상품 삭제
+  if ($target.closest('#cart-modal-remove-selected-btn')) {
+    e.stopPropagation();
+    const selectedItems = getSelectedItems();
+
+    if (selectedItems.length > 0) {
+      removeSelectedItems();
+      refreshCartModal();
+      updateHeader();
+      showToast('선택된 상품들이 삭제되었습니다.', 'info');
+    }
+    return;
+  }
+
+  // 장바구니 비우기
+  if ($target.closest('#cart-modal-clear-cart-btn')) {
+    e.stopPropagation();
+    clearCart();
+    refreshCartModal();
+    updateHeader();
+    showToast('장바구니가 비워졌습니다.', 'info');
+    return;
+  }
+
+  // 장바구니 수량 증가
+  if ($target.closest('.quantity-increase-btn')) {
+    e.stopPropagation();
+    const button = $target.closest('.quantity-increase-btn');
+    const productId = button.dataset.productId;
+    const cartData = getCartData();
+    const item = cartData.items.find((item) => item.id === productId);
+
+    if (item) {
+      updateCartQuantity(productId, item.quantity + 1);
+      refreshCartModal();
+    }
+    return;
+  }
+
+  // 장바구니 수량 감소
+  if ($target.closest('.quantity-decrease-btn')) {
+    e.stopPropagation();
+    const button = $target.closest('.quantity-decrease-btn');
+    const productId = button.dataset.productId;
+    const cartData = getCartData();
+    const item = cartData.items.find((item) => item.id === productId);
+
+    if (item && item.quantity > 1) {
+      updateCartQuantity(productId, item.quantity - 1);
+      refreshCartModal();
+    }
+    return;
+  }
+
+  // 장바구니 아이템 삭제
+  if ($target.closest('.cart-item-remove-btn')) {
+    e.stopPropagation();
+    const button = $target.closest('.cart-item-remove-btn');
+    const productId = button.dataset.productId;
+
+    removeFromCart(productId);
+    refreshCartModal();
+    updateHeader();
+    showToast('상품이 삭제되었습니다.', 'info');
+    return;
+  }
+
   if ($target.closest('.add-to-cart-btn')) {
     e.stopPropagation();
     const button = $target.closest('.add-to-cart-btn');
@@ -161,6 +299,7 @@ document.body.addEventListener('click', (e) => {
     };
 
     addToCart(product, 1);
+    updateHeader();
     showToast('장바구니에 추가되었습니다.', 'success');
 
     return;
@@ -174,6 +313,16 @@ document.body.addEventListener('click', (e) => {
 });
 
 window.addEventListener('popstate', render);
+
+// ESC 키로 모달 닫기
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const modal = document.querySelector('.cart-modal');
+    if (modal) {
+      closeCartModal();
+    }
+  }
+});
 
 document.body.addEventListener('change', (e) => {
   const $target = e.target;

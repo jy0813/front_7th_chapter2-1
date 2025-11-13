@@ -1,6 +1,7 @@
 import { getCategories, getProduct, getProducts } from '@/api/productApi';
 import { DetailPage } from '@/pages/DetailPage';
 import { HomePage } from '@/pages/HomePage';
+import { NotFoundPage } from '@/pages/NotFoundPage';
 import {
   initInfiniteScroll,
   cleanupInfiniteScroll,
@@ -177,7 +178,7 @@ const render = async () => {
         ...pageState,
       });
     }
-  } else {
+  } else if (window.location.pathname.includes('/product/')) {
     const productId = window.location.pathname.split('/product/')[1];
     $root.innerHTML = DetailPage({ loading: true });
 
@@ -210,6 +211,9 @@ const render = async () => {
         error: error.message || '상품 정보를 불러오는데 실패했습니다.',
       });
     }
+  } else {
+    // 404 페이지
+    $root.innerHTML = NotFoundPage();
   }
 };
 
@@ -218,7 +222,13 @@ document.body.addEventListener('click', (e) => {
 
   if ($target.closest('a')) {
     e.preventDefault();
-    const href = $target.closest('a').getAttribute('href');
+    let href = $target.closest('a').getAttribute('href');
+
+    // '/'는 BASE_URL로 변환
+    if (href === '/') {
+      href = import.meta.env.BASE_URL;
+    }
+
     push(href);
     return;
   }
